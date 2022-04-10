@@ -379,3 +379,86 @@ db.companies.find({ "relationships":
                                         "person.first_name": "Mark" } } },
                   { "name": 1 }).count()
 ```
+
+# Chapter 5 : Indexing and Aggregation Pipeline
+
+## Aggregation Framework
+
+```python
+# Find all documents that have Wifi as one of the amenities. Only include price and address in the resulting cursor.
+db.listingsAndReviews.find({ "amenities": "Wifi" },
+                           { "price": 1, "address": 1, "_id": 0 }).pretty()
+
+# Using the aggregation framework find all documents that have Wifi as one of the amenities``*. Only include* ``price and address in the resulting cursor.
+db.listingsAndReviews.aggregate([
+                                  { "$match": { "amenities": "Wifi" } },
+                                  { "$project": { "price": 1,
+                                                  "address": 1,
+                                                  "_id": 0 }}]).pretty()
+
+# Find one document in the collection and only include the address field in the resulting cursor.
+db.listingsAndReviews.findOne({ },{ "address": 1, "_id": 0 })
+
+# Project only the address field value for each document, then group all documents into one document per address.country value.
+db.listingsAndReviews.aggregate([ { "$project": { "address": 1, "_id": 0 }},
+                                  { "$group": { "_id": "$address.country" }}])
+
+# Project only the address field value for each document, then group all documents into one document per address.country value, and count one for each document in each group.
+db.listingsAndReviews.aggregate([
+                                  { "$project": { "address": 1, "_id": 0 }},
+                                  { "$group": { "_id": "$address.country",
+                                                "count": { "$sum": 1 } } }
+                                ])
+
+```
+
+## sort() and limit()
+
+- `sort()` : Sort documents
+    - 1 : Incresing
+    - -1 : Decresing
+- `limit(n)` : Get just `n` documents in result
+- `cursor.sort().limit()`
+
+## Introduction to Indexes
+
+- Indexes
+    - Make queries even more efficient
+    - Are one of the most impactful ways to improve query performance
+- Single field index
+    - `db.<collection>.createIndex({"fields": 1})`
+- Not perfect for
+    - `db.<collection>.find({"field1": 42}).sort("field2": 1)`
+- Compound Index
+    - `db.<collection>.createIndex({"field1": 1, "field2": 1})`
+- It doesn't really matter whether the index was created in increasing or decreasing order when it is a simple single-field index.
+
+## Introduction to Data Modeling
+
+- What is data modeling?
+    
+    a way to organize fields in a document to support your application performance and querying capabilities.
+    
+
+## Upsert - Update or Insert?
+
+- Everything in MQL that is used to locate a document in a collection can also be used to modify this document.
+    
+    `db.collection.updateOne({<query to locate>}, {<update>})`
+    
+- Upsert is a hybrid of update and insert, it should only be used when it is needed.
+    
+    `db.collection.updateOne({<query>, {<update>}, {"upsert": true})`
+    
+- If upsert is true
+    - Is there a match?
+        - YES → Update the matched document
+        - NO → Insert a new document
+
+```python
+db.iot.updateOne({ "sensor": r.sensor, "date": r.date,
+                   "valcount": { "$lt": 48 } },
+                         { "$push": { "readings": { "v": r.value, "t": r.time } },
+                        "$inc": { "valcount": 1, "total": r.value } },
+                 { "upsert": true })
+```
